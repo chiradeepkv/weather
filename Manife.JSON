@@ -1,0 +1,22 @@
+{
+  "name": "SkyCheck Weather",
+  "short_name": "SkyCheck",
+  "description": "A beginner PWA that fetches live weather data",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192x192/60a5fa/ffffff?text=☁",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/60a5fa/ffffff?text=☁",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

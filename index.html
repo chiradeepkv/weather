@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="A beginner PWA that connects to a weather API" />
+  <title>SkyCheck </title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── CSS Variables (your design system) ── */
+    :root {
+      --bg: #0b1120;
+      --surface: #151f35;
+      --card: #1c2b47;
+      --accent: #60a5fa;
+      --accent2: #818cf8;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --border: rgba(255,255,255,0.07);
+      --radius: 20px;
+      --font-display: 'DM Serif Display', serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 16px 40px;
+      background-image:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(96,165,250,0.12), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(129,140,248,0.08), transparent);
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 480px;
+      padding: 36px 0 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #93c5fd, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-top: 4px;
+      font-weight: 300;
+    }
+
+    /* ── Main container ── */
+    main {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Search box ── */
+    .search-wrap {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      padding: 14px 18px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--accent);
+    }
+
+    input::placeholder { color: var(--muted); }
+
+    button {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      font-weight: 500;
+      padding: 14px 22px;
+      transition: opacity 0.2s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    button:active { transform: scale(0.97); opacity: 0.9; }
+
+    /* ── Status / error ── */
+    #status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+      min-height: 20px;
+    }
+    #status.error { color: #f87171; }
+
+    /* ── Weather card ── */
+    .weather-card {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      display: none;          /* hidden until data loads */
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeUp 0.4s ease;
+    }
+
+    .weather-card.visible { display: flex; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* City name + country */
+    .city-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .city-name {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+    }
+
+    .country-tag {
+      background: rgba(96,165,250,0.15);
+      border: 1px solid rgba(96,165,250,0.3);
+      border-radius: 8px;
+      color: var(--accent);
+      font-size: 0.78rem;
+      font-weight: 500;
+      padding: 4px 10px;
+    }
+
+    /* Big temperature */
+    .temp-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .temp-big {
+      font-family: var(--font-display);
+      font-size: 4.5rem;
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .weather-icon {
+      font-size: 3.5rem;
+      line-height: 1;
+    }
+
+    .description {
+      text-transform: capitalize;
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-top: -8px;
+    }
+
+    /* Stats grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat-box {
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 1.3rem;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    /* Install banner */
+    #install-banner {
+      background: linear-gradient(135deg, rgba(96,165,250,0.12), rgba(129,140,248,0.12));
+      border: 1.5px solid rgba(96,165,250,0.2);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    #install-banner.visible { display: flex; }
+
+    #install-banner p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      flex: 1;
+    }
+
+    #install-btn {
+      flex-shrink: 0;
+      font-size: 0.85rem;
+      padding: 10px 16px;
+    }
+
+    /* ── Code explainer section ── */
+    .explainer {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 8px;
+    }
+
+    .explainer h2 {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+    }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .step-num {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%;
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      height: 26px;
+      line-height: 26px;
+      min-width: 26px;
+      text-align: center;
+    }
+
+    .step-text strong { display: block; font-size: 0.9rem; margin-bottom: 2px; }
+    .step-text span { color: var(--muted); font-size: 0.83rem; line-height: 1.5; }
+
+    code {
+      background: rgba(96,165,250,0.1);
+      border-radius: 5px;
+      color: var(--accent);
+      font-size: 0.8rem;
+      padding: 1px 6px;
+    }
+
+    /* Loader spinner */
+    .spinner {
+      width: 22px; height: 22px;
+      border: 2.5px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>SkyCheck</h1>
+    <p>A beginner Progressive Web App · API Edition</p>
+  </header>
+
+  <main>
+
+    <!-- 1. SEARCH -->
+    <div class="search-wrap">
+      <input type="text" id="cityInput" placeholder="Enter a city (e.g. Chennai)" />
+      <button id="searchBtn" onclick="fetchWeather()">Search</button>
+    </div>
+
+    <!-- Status / error message -->
+    <div id="status"></div>
+    <div class="spinner" id="spinner"></div>
+
+    <!-- 2. WEATHER CARD (hidden until data loads) -->
+    <div class="weather-card" id="weatherCard">
+      <div class="city-row">
+        <span class="city-name" id="cityName"></span>
+        <span class="country-tag" id="countryTag"></span>
+      </div>
+      <div class="temp-row">
+        <span class="temp-big" id="tempBig"></span>
+        <span class="weather-icon" id="weatherIcon"></span>
+      </div>
+      <p class="description" id="desc"></p>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Feels like</div>
+          <div class="stat-value" id="feelsLike"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Humidity</div>
+          <div class="stat-value" id="humidity"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Wind</div>
+          <div class="stat-value" id="wind"></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Visibility</div>
+          <div class="stat-value" id="visibility"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. INSTALL BANNER -->
+    <div id="install-banner">
+      <p>📲 Add SkyCheck to your home screen for offline access!</p>
+      <button id="install-btn">Install</button>
+    </div>
+
+    <!-- 4. BEGINNER EXPLAINER -->
+    <div class="explainer">
+      <h2>How this PWA works 📖</h2>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <strong>HTML — the structure</strong>
+          <span>Every element you see (input box, card, buttons) is an HTML tag. We give each one an <code>id</code> so JavaScript can find it later.</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <strong>CSS — the style</strong>
+          <span>All the colors, fonts, and layouts are CSS. We use <code>:root</code> variables so changing one line updates the whole theme.</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <strong>fetch() — calling the API</strong>
+          <span><code>fetch(url)</code> sends a request to a server and gets back data. We use the free Open-Meteo + Geocoding API — no key needed!</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <strong>async / await — waiting for data</strong>
+          <span>APIs take time. <code>async</code> / <code>await</code> tells JavaScript to pause and wait for the response before moving on.</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-text">
+          <strong>manifest.json — makes it a PWA</strong>
+          <span>This file tells the browser the app's name, icon, and colors. It's what enables the "Add to Home Screen" install prompt.</span>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-text">
+          <strong>Service Worker — offline power</strong>
+          <span>The <code>sw.js</code> file runs in the background. It caches files so the app still opens when there's no internet.</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ─────────── JAVASCRIPT ─────────── -->
+  <script>
+    // ═══════════════════════════════════════════
+    // STEP 1: Map weather codes to emojis
+    // (Open-Meteo uses numeric WMO codes)
+    // ═══════════════════════════════════════════
+    function getWeatherEmoji(code) {
+      if (code === 0)           return '☀️';
+      if (code <= 2)            return '⛅';
+      if (code <= 3)            return '☁️';
+      if (code <= 48)           return '🌫️';
+      if (code <= 57)           return '🌧️';
+      if (code <= 67)           return '🌨️';
+      if (code <= 77)           return '❄️';
+      if (code <= 82)           return '🌦️';
+      if (code <= 86)           return '🌨️';
+      if (code <= 99)           return '⛈️';
+      return '🌡️';
+    }
+
+    function getWeatherLabel(code) {
+      if (code === 0)           return 'Clear sky';
+      if (code <= 2)            return 'Partly cloudy';
+      if (code <= 3)            return 'Overcast';
+      if (code <= 48)           return 'Foggy';
+      if (code <= 67)           return 'Rainy';
+      if (code <= 77)           return 'Snowy';
+      if (code <= 82)           return 'Rain showers';
+      if (code <= 99)           return 'Thunderstorm';
+      return 'Unknown';
+    }
+
+    // ═══════════════════════════════════════════
+    // STEP 2: UI helpers
+    // ═══════════════════════════════════════════
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = isError ? 'error' : '';
+    }
+
+    function showSpinner(show) {
+      document.getElementById('spinner').style.display = show ? 'block' : 'none';
+    }
+
+    // ═══════════════════════════════════════════
+    // STEP 3: Main fetch function
+    // Called when user clicks Search
+    // ═══════════════════════════════════════════
+    async function fetchWeather() {
+      const city = document.getElementById('cityInput').value.trim();
+
+      // Guard: don't run if input is empty
+      if (!city) {
+        setStatus('Please enter a city name.', true);
+        return;
+      }
+
+      // Hide old card, show spinner
+      document.getElementById('weatherCard').classList.remove('visible');
+      showSpinner(true);
+      setStatus('Looking up ' + city + '…');
+
+      try {
+        // ── 3a. Geocoding: turn city name → lat/lon ──
+        const geoURL = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=en&format=json`;
+        const geoRes  = await fetch(geoURL);       // send request
+        const geoData = await geoRes.json();        // parse JSON response
+
+        if (!geoData.results || geoData.results.length === 0) {
+          throw new Error('City not found. Try another name.');
+        }
+
+        const place = geoData.results[0];
+        const { latitude, longitude, name, country } = place;
+
+        // ── 3b. Weather: use lat/lon to get current conditions ──
+        const weatherURL = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,visibility,weather_code&wind_speed_unit=kmh&timezone=auto`;
+        const wxRes  = await fetch(weatherURL);
+        const wxData = await wxRes.json();
+
+        const c = wxData.current; // shorthand
+
+        // ── 3c. Populate the card ──
+        document.getElementById('cityName').textContent    = name;
+        document.getElementById('countryTag').textContent  = country;
+        document.getElementById('tempBig').textContent     = Math.round(c.temperature_2m) + '°C';
+        document.getElementById('weatherIcon').textContent = getWeatherEmoji(c.weather_code);
+        document.getElementById('desc').textContent        = getWeatherLabel(c.weather_code);
+        document.getElementById('feelsLike').textContent   = Math.round(c.apparent_temperature) + '°C';
+        document.getElementById('humidity').textContent    = c.relative_humidity_2m + '%';
+        document.getElementById('wind').textContent        = c.wind_speed_10m + ' km/h';
+        document.getElementById('visibility').textContent  = (c.visibility / 1000).toFixed(1) + ' km';
+
+        // Show card
+        document.getElementById('weatherCard').classList.add('visible');
+        setStatus('');
+
+      } catch (err) {
+        // If anything goes wrong, show a friendly message
+        setStatus(err.message || 'Something went wrong. Please try again.', true);
+      } finally {
+        // Always hide spinner (runs whether success or error)
+        showSpinner(false);
+      }
+    }
+
+    // ── Allow pressing Enter to search ──
+    document.getElementById('cityInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchWeather();
+    });
+
+    // ═══════════════════════════════════════════
+    // STEP 4: PWA Install Prompt
+    // The browser fires this event when the app
+    // is installable (served over HTTPS)
+    // ═══════════════════════════════════════════
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-banner').classList.add('visible');
+    });
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const result = await deferredPrompt.userChoice;
+      console.log('Install result:', result.outcome);
+      deferredPrompt = null;
+      document.getElementById('install-banner').classList.remove('visible');
+    });
+
+    // ═══════════════════════════════════════════
+    // STEP 5: Register Service Worker
+    // ═══════════════════════════════════════════
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.warn('SW error:', err));
+    }
+  </script>
+</body>
+</html>
